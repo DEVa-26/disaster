@@ -26,7 +26,7 @@ except Exception as e:
     print(f"❌ Error loading tweet model/vectorizer: {e}")
 
 # 🔹 Load Image Classification Model
-image_model_path = r"project\models\best_model.pth"
+image_model_path = r"C:\Users\admin\Desktop\MiniProject\DisasterPro\project\models\best_model.pth"
 image_model, device = load_model(image_model_path)
 print("✅ Image Classification Model Loaded")
 
