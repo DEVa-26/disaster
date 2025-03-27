@@ -78,7 +78,7 @@ const Navbar = () => {
             {user?.role === 'admin' && (
               <Link
                 to="/admin"
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-gray-700"
+                className="block  py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-gray-700"
               >
                 Admin Panel
               </Link>
