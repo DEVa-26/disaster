@@ -76,6 +76,7 @@ const DisasterIdentifier = () => {
     setShowPopup(true);
     setTimeout(() => {
       setShowPopup(false);
+      window.location.href = "/resource";
     }, 7000);
 
   };
