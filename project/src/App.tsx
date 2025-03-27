@@ -48,9 +48,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-          </Routes>
-     
-          <Route 
+            <Route 
               path="/resource" 
               element={
                 <ProtectedRoute>
@@ -58,6 +56,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+          </Routes>
         </div>
       </Router>
     </AuthProvider>
