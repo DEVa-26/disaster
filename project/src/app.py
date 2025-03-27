@@ -3,6 +3,7 @@ from flask_cors import CORS
 import joblib
 import nltk
 from disaster import load_model, predict_image, class_labels, severity_labels
+from resource import allocate_resources
 import torch
 import os
 from geotext import GeoText  # Module for detecting cities in text
@@ -36,7 +37,7 @@ lemma = nltk.WordNetLemmatizer()
 stop = set(nltk.corpus.stopwords.words("english"))
 
 # Base directory for disaster images
-BASE_IMAGE_DIR = r"C:\Users\admin\Desktop\MiniProject\Project\project\Disaster_images"
+BASE_IMAGE_DIR = r"C:\Users\admin\Desktop\MiniProject\DisasterPro\project\Disaster_images"
 
 def cleanTweet(txt):
     txt = txt.lower()
@@ -99,6 +100,8 @@ def analyze_image():
     try:
         if "image" in request.files:
             image = request.files["image"]
+            return jsonify({"error": "Image file upload not supported. Use image path."}), 400
+
         elif request.is_json:
             data = request.get_json()
             image_path = data.get("image_path")
@@ -106,12 +109,15 @@ def analyze_image():
             if not image_path or not os.path.exists(image_path):
                 return jsonify({"error": "Invalid or missing image path"}), 400
 
-            image = image_path
+            # 🔹 Classify the image
+            prediction = predict_image(image_model, image_path, device, class_labels, severity_labels)
+
+            # 🔹 Allocate resources based on prediction
+            allocate_resources(image_path)
+
+            return jsonify(prediction)
         else:
             return jsonify({"error": "No image provided"}), 400
-
-        prediction = predict_image(image_model, image, device, class_labels, severity_labels)
-        return jsonify(prediction)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
