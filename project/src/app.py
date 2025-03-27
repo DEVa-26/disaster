@@ -4,6 +4,8 @@ import joblib
 import nltk
 from disaster import load_model, predict_image, class_labels, severity_labels
 import torch
+import os
+from geotext import GeoText  # Module for detecting cities in text
 
 # 🔹 Preprocessing for Tweet Classification
 nltk.download("punkt")
@@ -15,8 +17,8 @@ app = Flask(__name__)
 CORS(app)
 
 # 🔹 Load Tweet Classification Model & Vectorizer
-model_filename = r"project\models\tweet_classyfying_pa_bigram_model_2.pkl"
-vectorizer_filename = r"project\models\tfidf_vectorizer_bigram_2.pkl"
+model_filename = r"C:\Users\admin\Desktop\MiniProject\Project\project\models\tweet_classyfying_pa_bigram_model_2.pkl"
+vectorizer_filename = r"C:\Users\admin\Desktop\MiniProject\Project\project\models\tfidf_vectorizer_bigram_2.pkl"
 
 try:
     tweet_model = joblib.load(model_filename)
@@ -26,18 +28,27 @@ except Exception as e:
     print(f"❌ Error loading tweet model/vectorizer: {e}")
 
 # 🔹 Load Image Classification Model
-image_model_path = r"C:\Users\admin\Desktop\MiniProject\DisasterPro\project\models\best_model.pth"
+image_model_path = r"C:\Users\admin\Desktop\MiniProject\Project\project\models\chk_model.pth"
 image_model, device = load_model(image_model_path)
 print("✅ Image Classification Model Loaded")
 
 lemma = nltk.WordNetLemmatizer()
 stop = set(nltk.corpus.stopwords.words("english"))
 
+# Base directory for disaster images
+BASE_IMAGE_DIR = r"C:\Users\admin\Desktop\MiniProject\Project\project\Disaster_images"
+
 def cleanTweet(txt):
     txt = txt.lower()
     words = nltk.word_tokenize(txt)
     words = [lemma.lemmatize(word) for word in words if word not in stop]
     return " ".join(words)
+
+def extract_location(tweet):
+    """Extracts the first city found in a tweet using GeoText."""
+    places = GeoText(tweet)
+    cities = places.cities  # Extracted city names
+    return cities[0] if cities else None
 
 # 🟢 **Route for Tweet Classification**
 @app.route("/analyze-tweet", methods=["POST"])
@@ -53,21 +64,56 @@ def analyze_tweet():
         tfidf_tweet = tfidf_vectorizer.transform([cleaned_tweet])
         prediction = tweet_model.predict(tfidf_tweet)[0]
 
-        return jsonify({"result": "true" if prediction == 1 else "false"})
+        # Extract location from tweet
+        detected_city = extract_location(tweet)
+        return jsonify({
+            "result": "true" if prediction == 1 else "false",
+            "location": detected_city if prediction == 1 else None
+        })
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 🟢 **Route to Get Image List from Directory**
+@app.route("/get-images", methods=["POST"])
+def get_images():
+    try:
+        data = request.get_json()
+        city_name = data.get("city")
+
+        # Determine correct directory
+        image_dir = os.path.join(BASE_IMAGE_DIR, city_name) if city_name else BASE_IMAGE_DIR
+        if not os.path.exists(image_dir):
+            return jsonify({"error": f"Image directory '{city_name}' not found"}), 404
+
+        image_files = [f for f in os.listdir(image_dir) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
+        image_paths = [os.path.join(image_dir, img) for img in image_files]
+
+        return jsonify({"images": image_paths})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # 🟢 **Route for Image Classification**
 @app.route("/analyze-image", methods=["POST"])
 def analyze_image():
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
+    try:
+        if "image" in request.files:
+            image = request.files["image"]
+        elif request.is_json:
+            data = request.get_json()
+            image_path = data.get("image_path")
 
-    image = request.files["image"]
-    prediction = predict_image(image_model, image, device, class_labels, severity_labels)
+            if not image_path or not os.path.exists(image_path):
+                return jsonify({"error": "Invalid or missing image path"}), 400
 
-    return jsonify(prediction)
+            image = image_path
+        else:
+            return jsonify({"error": "No image provided"}), 400
+
+        prediction = predict_image(image_model, image, device, class_labels, severity_labels)
+        return jsonify(prediction)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
